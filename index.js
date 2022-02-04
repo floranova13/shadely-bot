@@ -1,6 +1,6 @@
 // Require the necessary discord.js classes
 const { Client, Intents } = require('discord.js');
-const { serverCommand } = require('./commands');
+const { serverCommand, userCommand } = require('./commands');
 require('dotenv').config();
 
 // Create a new client instance
@@ -17,11 +17,12 @@ client.on('interactionCreate', async (interaction) => {
   const { commandName } = interaction;
 
   if (commandName === 'ping') {
-    await interaction.reply('Pong!');
+    await interaction.reply('pong');
   } else if (commandName === 'server') {
     await interaction.reply(serverCommand(interaction));
+    // await interaction.followUp(serverCommand(interaction));
   } else if (commandName === 'user') {
-    await interaction.reply('User info.');
+    await userCommand;
   }
 });
 

@@ -3,7 +3,16 @@ const serverCommand = (interaction) => {
   const serverName = guild.name;
   const description = guild.description || '';
   const memberCount = guild.memberCount;
-  return `${serverName}: ${description}\nTotal members: ${memberCount}\n`;
+  return (
+    `${guild.iconURL()}\n${serverName}: ${description}\nTotal members: ${memberCount}\n`
+  );
 };
 
-module.exports = { serverCommand };
+const userCommand = async (interaction) => {
+  const user = interaction.user;
+  const message = `Your tag: ${user.tag}\nYour id: ${user.id}`;
+
+  await interaction.reply(message);
+};
+
+module.exports = { serverCommand, userCommand };
