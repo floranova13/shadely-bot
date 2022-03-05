@@ -3,7 +3,7 @@ const { REST } = require('@discordjs/rest');
 const { Routes } = require('discord-api-types/v9');
 require('dotenv').config();
 
-const commands = [
+const generalCommands = [
   new SlashCommandBuilder()
     .setName('ping')
     .setDescription('Replies with pong!'),
@@ -13,7 +13,9 @@ const commands = [
   new SlashCommandBuilder()
     .setName('user')
     .setDescription('Replies with user info!'),
-].map((command) => command.toJSON());
+];
+
+const commands = [...generalCommands].map((command) => command.toJSON());
 
 const rest = new REST({ version: '9' }).setToken(process.env.token);
 

@@ -1,6 +1,8 @@
+/* eslint-disable no-case-declarations */
+/* eslint-disable indent */
 // Require the necessary discord.js classes
 const { Client, Intents } = require('discord.js');
-const { serverCommand, userCommand } = require('./commands');
+const { serverCommand, userCommand, pongCommand } = require('./commands');
 require('dotenv').config();
 
 // Create a new client instance
@@ -16,13 +18,18 @@ client.on('interactionCreate', async (interaction) => {
 
   const { commandName } = interaction;
 
-  if (commandName === 'ping') {
-    await interaction.reply('pong');
-  } else if (commandName === 'server') {
-    await interaction.reply(serverCommand(interaction));
-    // await interaction.followUp(serverCommand(interaction));
-  } else if (commandName === 'user') {
-    await userCommand;
+  switch (commandName) {
+    case 'ping':
+      await pongCommand(interaction);
+      break;
+    case 'server':
+      await serverCommand(interaction);
+      break;
+    case 'user':
+      await userCommand(interaction, client);
+      break;
+    default:
+      break;
   }
 });
 
