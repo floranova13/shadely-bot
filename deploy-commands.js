@@ -13,6 +13,24 @@ const generalCommands = [
   new SlashCommandBuilder()
     .setName('user')
     .setDescription('Replies with user info!'),
+  new SlashCommandBuilder()
+    .setName('play')
+    .setDescription('Plays a YouTube video!')
+    .addStringOption((option) =>
+      option
+        .setName('video')
+        .setDescription('The video to play')
+        .setRequired(true)
+    ),
+  new SlashCommandBuilder()
+    .setName('roll')
+    .setDescription('Rolls a specified die!')
+    .addIntegerOption((option) =>
+      option
+        .setName('die')
+        .setDescription('The max possible roll')
+        .setRequired(true)
+    ),
 ];
 
 const commands = [...generalCommands].map((command) => command.toJSON());

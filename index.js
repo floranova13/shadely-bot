@@ -3,6 +3,8 @@
 const { Client, Intents } = require('discord.js');
 const { pongCommand } = require('./commands');
 const { serverCommand, userCommand } = require('./commands/general');
+const { playCommand } = require('./commands/music');
+const { rollCommand } = require('./commands/dice');
 
 require('dotenv').config();
 
@@ -27,6 +29,12 @@ client.on('interactionCreate', async (interaction) => {
         break;
       case 'user':
         await userCommand(interaction, client);
+        break;
+      case 'play':
+        await playCommand(interaction, client);
+        break;
+      case 'roll':
+        await rollCommand(interaction);
         break;
       default:
         break;

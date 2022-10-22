@@ -10,7 +10,10 @@
     "discord.js": "^13.6.0",
     "dotenv": "^14.3.2",
     "eslint": "^8.8.0",
-    "nodemon": "^2.0.15"
+    "lodash": "^4.17.21",
+    "nodemon": "^2.0.15",
+    "opusscript": "^0.0.8",
+    "ytdl-core": "^4.11.2"
   },
   "scripts": {
     "start": "node index.js",
