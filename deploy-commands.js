@@ -14,6 +14,9 @@ const generalCommands = [
     .setName('user')
     .setDescription('Replies with user info!'),
   new SlashCommandBuilder()
+    .setName('cache')
+    .setDescription('Cache everything!'),
+  new SlashCommandBuilder()
     .setName('play')
     .setDescription('Plays a YouTube video!')
     .addStringOption((option) =>
@@ -22,6 +25,25 @@ const generalCommands = [
         .setDescription('The video to play')
         .setRequired(true)
     ),
+  new SlashCommandBuilder()
+    .setName('queue')
+    .setDescription('Gets the video queue!'),
+  new SlashCommandBuilder()
+    .setName('pause')
+    .setDescription('Pauses playback of audio!'),
+  new SlashCommandBuilder()
+    .setName('unpause')
+    .setDescription('Unpauses playback of audio!'),
+  new SlashCommandBuilder()
+    .setName('search')
+    .setDescription('Searches for a youtube video!')
+    .addStringOption((option) =>
+      option
+        .setName('query')
+        .setDescription('The video to search for')
+        .setRequired(true)
+    ),
+  new SlashCommandBuilder().setName('stop').setDescription('Stop everything!'),
   new SlashCommandBuilder()
     .setName('roll')
     .setDescription('Rolls a specified die!')
