@@ -14,9 +14,6 @@ const generalCommands = [
     .setName('user')
     .setDescription('Replies with user info!'),
   new SlashCommandBuilder()
-    .setName('cache')
-    .setDescription('Cache everything!'),
-  new SlashCommandBuilder()
     .setName('play')
     .setDescription('Plays a YouTube video!')
     .addStringOption((option) =>
@@ -64,7 +61,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.token);
 
 rest
   .put(
-    Routes.applicationGuildCommands(process.env.clientId, process.env.guildId),
+    Routes.applicationCommands(process.env.clientId),
     { body: commands }
   )
   .then(() => console.log('Successfully registered application commands.'))

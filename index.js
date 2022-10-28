@@ -44,15 +44,22 @@ client.once('ready', () => {
 client.on('interactionCreate', async (interaction) => {
   const Guild = await client.guilds.cache.get(interaction.guild.id);
   const Member = await Guild.members.cache.get(interaction.member.user.id);
-  let userHasPermissions = false;
+  const server = servers[Guild.id];
+  const requiredRoles = server?.roles;
+
+  if (!server) {
+    await interaction.reply(
+      'Please initialize the bot before using it! You can do this by calling "/initialize".'
+    );
+    return;
+  }
 
   if (interaction.isCommand()) {
     const { commandName } = interaction;
 
-    if (Member.roles.cache.some((role) => role.name === 'DM')) {
-      userHasPermissions = true;
-
-      console.log('User is a DM');
+    if (!Member.roles.cache.some((role) => requiredRoles.includes(role.name))) {
+      await interaction.reply('You do not have permissions to use me!');
+      return;
     }
 
     switch (commandName) {

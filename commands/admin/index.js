@@ -1,6 +1,7 @@
+/* eslint-disable quotes */
 const initializeCommand = async (interaction, client, servers) => {
   const validRoles = {
-    'server1': [],
+    'Personal Server': ['DM'],
   };
 
   try {
@@ -14,7 +15,8 @@ const initializeCommand = async (interaction, client, servers) => {
       servers[Guild.id] = { queue: [], current: '', roles };
       message = 'Initialized bot!';
     } else {
-      message = 'Bot already initialized! Are you trying to erase me?!';
+      message =
+        "Bot already initialized! Are you trying to erase me?! I'll remember that.";
     }
 
     await interaction.reply(message);
