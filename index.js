@@ -18,6 +18,7 @@ const {
   searchCommand,
 } = require('./commands/music');
 const { rollCommand } = require('./commands/dice');
+const { initializeCommand } = require('./commands/admin');
 
 require('dotenv').config();
 
@@ -43,11 +44,14 @@ client.once('ready', () => {
 client.on('interactionCreate', async (interaction) => {
   const Guild = await client.guilds.cache.get(interaction.guild.id);
   const Member = await Guild.members.cache.get(interaction.member.user.id);
+  let userHasPermissions = false;
 
   if (interaction.isCommand()) {
     const { commandName } = interaction;
 
     if (Member.roles.cache.some((role) => role.name === 'DM')) {
+      userHasPermissions = true;
+
       console.log('User is a DM');
     }
 
@@ -81,6 +85,9 @@ client.on('interactionCreate', async (interaction) => {
         break;
       case 'roll':
         await rollCommand(interaction);
+        break;
+      case 'initialize':
+        await initializeCommand(interaction, client, servers);
         break;
       default:
         break;

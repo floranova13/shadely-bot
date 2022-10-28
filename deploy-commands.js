@@ -53,6 +53,9 @@ const generalCommands = [
         .setDescription('The max possible roll')
         .setRequired(true)
     ),
+  new SlashCommandBuilder()
+    .setName('initialize')
+    .setDescription('Initializes the bot!'),
 ];
 
 const commands = [...generalCommands].map((command) => command.toJSON());
