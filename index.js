@@ -11,6 +11,7 @@ const { pongCommand } = require('./commands');
 const { serverCommand, userCommand } = require('./commands/general');
 const {
   playCommand,
+  playFileCommand,
   stopCommand,
   queueCommand,
   pauseCommand,
@@ -46,6 +47,12 @@ client.on('interactionCreate', async (interaction) => {
   const Member = await Guild.members.cache.get(interaction.member.user.id);
   const server = servers[Guild.id];
   const requiredRoles = server?.roles;
+  const isCommand = interaction.isCommand();
+
+  if (isCommand && interaction.commandName === 'initialize') {
+    await initializeCommand(interaction, client, servers);
+    return;
+  }
 
   if (!server) {
     await interaction.reply(
@@ -54,10 +61,10 @@ client.on('interactionCreate', async (interaction) => {
     return;
   }
 
-  if (interaction.isCommand()) {
+  if (isCommand) {
     const { commandName } = interaction;
 
-    if (!Member.roles.cache.some((role) => requiredRoles.includes(role.name))) {
+    if (![...Member.roles.cache, 'Server Owner', 'Admin', 'Mod', 'Server Manager'].some((role) => requiredRoles.includes(role.name))) {
       await interaction.reply('You do not have permissions to use me!');
       return;
     }
@@ -75,6 +82,9 @@ client.on('interactionCreate', async (interaction) => {
       case 'play':
         await playCommand(interaction, client, servers, player);
         break;
+        case 'playfile':
+          await playFileCommand(interaction, client, servers, player);
+          break;
       case 'stop':
         await stopCommand(interaction, client, servers, player);
         break;
@@ -92,9 +102,6 @@ client.on('interactionCreate', async (interaction) => {
         break;
       case 'roll':
         await rollCommand(interaction);
-        break;
-      case 'initialize':
-        await initializeCommand(interaction, client, servers);
         break;
       default:
         break;

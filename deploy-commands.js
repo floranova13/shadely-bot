@@ -23,6 +23,9 @@ const generalCommands = [
         .setRequired(true)
     ),
   new SlashCommandBuilder()
+    .setName('playfile')
+    .setDescription('Play an audio file posted in a recent message!'),
+  new SlashCommandBuilder()
     .setName('queue')
     .setDescription('Gets the video queue!'),
   new SlashCommandBuilder()
@@ -60,9 +63,6 @@ const commands = [...generalCommands].map((command) => command.toJSON());
 const rest = new REST({ version: '9' }).setToken(process.env.token);
 
 rest
-  .put(
-    Routes.applicationCommands(process.env.clientId),
-    { body: commands }
-  )
+  .put(Routes.applicationCommands(process.env.clientId), { body: commands })
   .then(() => console.log('Successfully registered application commands.'))
   .catch(console.error);

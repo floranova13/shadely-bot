@@ -1,10 +1,12 @@
 /* eslint-disable no-unused-vars */
 /* eslint-disable indent */
 const ytdl = require('ytdl-core');
+const fetch = require('node-fetch');
 const { google, Auth } = require('googleapis');
 const { authenticate } = require('@google-cloud/local-auth');
 // const { createReadStream } = require('node:fs');
 const { join } = require('node:path');
+const fs = require('fs');
 const {
   getVoiceConnection,
   joinVoiceChannel,
@@ -176,6 +178,65 @@ const searchCommand = async (interaction, client) => {
   }
 };
 
+const playFileCommand = async (interaction, client, servers, player) => {
+  let message;
+
+  try {
+    const Guild = await client.guilds.cache.get(interaction.guild.id);
+    const Member = await Guild.members.cache.get(interaction.member.user.id);
+    const latestMessages = await interaction.channel.messages.fetch({
+      limit: 5,
+    });
+
+    if (latestMessages) {
+      for (let i = latestMessages.length - 1; i >= 0; i--) {
+        const currentMessage = latestMessages[i];
+        if (
+          currentMessage.user.id === interaction.member.user.id &&
+          currentMessage.attachments.length
+        ) {
+          const foundMessage = latestMessages[i];
+          const serverName = (
+            foundMessage.channel.server || { name: 'Direct Messages' }
+          ).name.replace(/\//g, '_');
+          const channelName = (
+            foundMessage.channel.name || foundMessage.channel.recipient.name
+          ).replace(/\//g, '_');
+          const foundFile = foundMessage.attachments[0];
+          const dirPath = join(__dirname, `${serverName}/${channelName}`);
+          const filePath = `${dirPath}/${foundFile.filename}`;
+
+          await fs.mkdir(dirPath, { recursive: true }, (err) =>
+            console.log(
+              err
+                ? 'Directory Failed to be created'
+                : 'Directory created successfully!'
+            )
+          );
+
+          await downloadFile(foundFile.url, filePath);
+          message = `Playing: ${foundFile.filename}`;
+        }
+      }
+    }
+  } catch (error) {
+    message = 'Error!';
+    console.error('ERROR OCCURED IN playFileCommand!');
+  }
+
+  interaction.reply(message);
+};
+
+const downloadFile = async (url, path) => {
+  const res = await fetch(url);
+  const fileStream = fs.createWriteStream(path);
+  await new Promise((resolve, reject) => {
+    res.body.pipe(fileStream);
+    res.body.on('error', reject);
+    fileStream.on('finish', resolve);
+  });
+};
+
 module.exports = {
   playCommand,
   stopCommand,
@@ -183,4 +244,5 @@ module.exports = {
   pauseCommand,
   unpauseCommand,
   searchCommand,
+  playFileCommand,
 };
