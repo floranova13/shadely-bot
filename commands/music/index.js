@@ -189,12 +189,14 @@ const playFileCommand = async (interaction, client, servers, player) => {
     });
 
     if (latestMessages) {
+      let foundAttachment = false;
       for (let i = latestMessages.length - 1; i >= 0; i--) {
         const currentMessage = latestMessages[i];
         if (
-          currentMessage.user.id === interaction.member.user.id &&
+          currentMessage.user.id === interaction.user.id &&
           currentMessage.attachments.length
         ) {
+          foundAttachment = true;
           const foundMessage = latestMessages[i];
           const serverName = (
             foundMessage.channel.server || { name: 'Direct Messages' }
@@ -213,28 +215,32 @@ const playFileCommand = async (interaction, client, servers, player) => {
                 : 'Directory created successfully!'
             )
           );
-
-          await downloadFile(foundFile.url, filePath);
-          message = `Playing: ${foundFile.filename}`;
+          interaction.reply(`Downloading: ${foundFile.filename}`);
+          downloadFile(foundFile.url, filePath);
         }
+      }
+      if (!foundAttachment) {
+        interaction.reply('No file found! Did you just lie to me?!');
       }
     }
   } catch (error) {
-    message = 'Error!';
+    interaction.reply('Error!');
     console.error('ERROR OCCURED IN playFileCommand!');
   }
-
-  interaction.reply(message);
 };
 
 const downloadFile = async (url, path) => {
-  const res = await fetch(url);
-  const fileStream = fs.createWriteStream(path);
-  await new Promise((resolve, reject) => {
-    res.body.pipe(fileStream);
-    res.body.on('error', reject);
-    fileStream.on('finish', resolve);
-  });
+  try {
+    const res = await fetch(url);
+    const fileStream = fs.createWriteStream(path);
+    await new Promise((resolve, reject) => {
+      res.body.pipe(fileStream);
+      res.body.on('error', reject);
+      fileStream.on('finish', resolve);
+    });
+  } catch (error) {
+    console.error('ERROR OCCURED IN downloadFile METHOD!');
+  }
 };
 
 module.exports = {

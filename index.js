@@ -46,7 +46,7 @@ client.on('interactionCreate', async (interaction) => {
   const Guild = await client.guilds.cache.get(interaction.guild.id);
   const Member = await Guild.members.cache.get(interaction.member.user.id);
   const server = servers[Guild.id];
-  const requiredRoles = server?.roles;
+  const requiredRoles = server?.roles || [];
   const isCommand = interaction.isCommand();
 
   if (isCommand && interaction.commandName === 'initialize') {
@@ -64,7 +64,17 @@ client.on('interactionCreate', async (interaction) => {
   if (isCommand) {
     const { commandName } = interaction;
 
-    if (![...Member.roles.cache, 'Server Owner', 'Admin', 'Mod', 'Server Manager'].some((role) => requiredRoles.includes(role.name))) {
+    if (
+      !Member.roles.cache.some((role) =>
+        [
+          ...requiredRoles,
+          'Server Owner',
+          'Admin',
+          'Mod',
+          'Server Manager',
+        ].includes(role.name)
+      )
+    ) {
       await interaction.reply('You do not have permissions to use me!');
       return;
     }
@@ -82,9 +92,9 @@ client.on('interactionCreate', async (interaction) => {
       case 'play':
         await playCommand(interaction, client, servers, player);
         break;
-        case 'playfile':
-          await playFileCommand(interaction, client, servers, player);
-          break;
+      case 'playfile':
+        await playFileCommand(interaction, client, servers, player);
+        break;
       case 'stop':
         await stopCommand(interaction, client, servers, player);
         break;
@@ -109,13 +119,4 @@ client.on('interactionCreate', async (interaction) => {
   }
 });
 
-// // eslint-disable-next-line no-unused-vars
-// player.on(AudioPlayerStatus.Idle, (oldState, newState) => {
-//   // if(servers[client]) {
-
-//   // }
-//   console.log({ newState }, { oldState });
-// });
-
-// Login to Discord with your client's token
 client.login(process.env.token);

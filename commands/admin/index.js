@@ -22,8 +22,6 @@ const initializeCommand = async (interaction, client, servers) => {
       : [];
     let message;
 
-    console.log({ roles });
-
     if (!servers[Guild.id]) {
       servers[Guild.id] = { queue: [], current: '', roles };
       message = 'Initialized bot!';
