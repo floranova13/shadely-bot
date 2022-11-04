@@ -10,6 +10,7 @@ const fs = require('fs');
 const {
   getVoiceConnection,
   joinVoiceChannel,
+  createAudioPlayer,
   createAudioResource,
   AudioPlayerStatus,
   entersState,
@@ -20,34 +21,45 @@ const Youtube = google.youtube({
   auth: process.env.YOUTUBE_KEY,
 });
 
-const playCommand = async (interaction, client, servers, player) => {
+const playCommand = async (interaction, client, servers) => {
   const Guild = await client.guilds.cache.get(interaction.guild.id);
   const Member = await Guild.members.cache.get(interaction.member.user.id);
   const videoString = interaction.options.getString('video');
-
-  if (!servers[Guild.id]) {
-    servers[Guild.id] = { queue: [], current: '' };
-  }
-
+  const videoId = videoString.split('=')[videoString.split('=').length - 1];
+  console.log('-------------------------', videoId);
+  const res = await Youtube.videos.list({
+    part: 'id,snippet',
+    id: videoId,
+    key: process.env.YOUTUBE_KEY,
+  });
+  console.log({ res });
+  const videoTitle = res.data.items[0].snippet.title;
   const server = servers[Guild.id];
+  const { queue, oldQueue } = server;
+  let { player } = server;
+
+  if (!player) {
+    createPlayer(server, Guild);
+    player = server.player;
+  }
 
   const play = (connection) => {
     // Will use FFmpeg with volume control enabled
     const resource = createAudioResource(
-      ytdl(server.queue[0], { filter: 'audioonly' }),
+      ytdl(queue[0].video, { filter: 'audioonly' }),
       {
         inlineVolume: true,
       }
     );
 
     resource.volume.setVolume(0.5);
-    server.dispatcher = player;
     player.play(resource);
-    server.queue.shift();
+    server.current = queue[0];
+    oldQueue.push(queue.shift());
 
     player.on(AudioPlayerStatus.Idle, () => {
       console.log('Idling');
-      server.queue[0]
+      queue.length // is there anything in the queue?
         ? play(connection)
         : () => {
             if (connection) connection.destroy();
@@ -59,7 +71,7 @@ const playCommand = async (interaction, client, servers, player) => {
     await interaction.reply('You must be in a voice channel to play a video!');
   } else {
     const voiceChannelId = Member.voice.channel.id;
-    server.queue.push(videoString);
+    queue.push({ video: videoString, title: videoTitle, isLocal: false });
 
     // make sure bot is in voice
     if (!getVoiceConnection(Guild.id)) {
@@ -82,13 +94,17 @@ const playCommand = async (interaction, client, servers, player) => {
 const queueCommand = async (interaction, client, servers) => {
   try {
     const Guild = await client.guilds.cache.get(interaction.guild.id);
-    const queue = servers[Guild.id].queue;
+    const { queue, current, player } = servers[Guild.id];
     let message;
 
-    if (!queue) {
+    if (
+      !queue.length === 0 &&
+      player._state.status !== AudioPlayerStatus.Paused &&
+      player._state.status !== AudioPlayerStatus.Playing
+    ) {
       message = 'There is currently no queue to display!';
     } else {
-      message = ['Queue:', ...queue.map((url, i) => `${i}. ${url}`)].join('\n');
+      message = ['Queue:', [current, ...queue].map((item, i) => `${i}. ${item.video}`)].join('\n');
     }
 
     await interaction.reply(message);
@@ -101,7 +117,7 @@ const pauseCommand = async (interaction, client, servers) => {
   try {
     const Guild = await client.guilds.cache.get(interaction.guild.id);
     const server = servers[Guild.id];
-    const { dispatcher: player, queue } = server;
+    const { player, queue } = server;
     let message;
 
     if (!queue || player._state.status !== AudioPlayerStatus.Playing) {
@@ -121,7 +137,7 @@ const unpauseCommand = async (interaction, client, servers) => {
   try {
     const Guild = await client.guilds.cache.get(interaction.guild.id);
     const server = servers[Guild.id];
-    const { dispatcher: player, queue } = server;
+    const { player, queue } = server;
     let message;
 
     if (!queue || player._state.status !== AudioPlayerStatus.Paused) {
@@ -160,6 +176,7 @@ const searchCommand = async (interaction, client) => {
     const searchString = interaction.options.getString('query');
     const res = await Youtube.search.list({
       part: 'id,snippet',
+      chart: 'mostPopular',
       q: searchString,
       key: process.env.YOUTUBE_KEY,
     });
@@ -184,29 +201,40 @@ const playFileCommand = async (interaction, client, servers, player) => {
   try {
     const Guild = await client.guilds.cache.get(interaction.guild.id);
     const Member = await Guild.members.cache.get(interaction.member.user.id);
-    const latestMessages = await interaction.channel.messages.fetch({
-      limit: 5,
+    const server = servers[Guild.id];
+    const messageObject = await interaction.channel.messages.fetch({
+      limit: 10,
     });
+    const latestMessages = Array.from(messageObject.values()).filter(
+      (currentMessage) => currentMessage.author.id === interaction.user.id
+    );
 
     if (latestMessages) {
       let foundAttachment = false;
       for (let i = latestMessages.length - 1; i >= 0; i--) {
         const currentMessage = latestMessages[i];
+        const currentMessageAttachments = Array.from(
+          currentMessage.attachments.values()
+        );
         if (
-          currentMessage.user.id === interaction.user.id &&
-          currentMessage.attachments.length
+          currentMessage.author.id === interaction.user.id &&
+          currentMessageAttachments.length
         ) {
           foundAttachment = true;
-          const foundMessage = latestMessages[i];
           const serverName = (
-            foundMessage.channel.server || { name: 'Direct Messages' }
+            Guild || { name: 'Direct Messages' }
           ).name.replace(/\//g, '_');
           const channelName = (
-            foundMessage.channel.name || foundMessage.channel.recipient.name
+            currentMessage.channel.name || currentMessage.channel.recipient.name
           ).replace(/\//g, '_');
-          const foundFile = foundMessage.attachments[0];
-          const dirPath = join(__dirname, `${serverName}/${channelName}`);
-          const filePath = `${dirPath}/${foundFile.filename}`;
+          const Channel = currentMessage.channel;
+          const foundFile = currentMessageAttachments[0];
+          const dirPath = join(
+            __dirname,
+            `/downloads${serverName}/${channelName}`
+          );
+          const filePath = `${dirPath}/${foundFile.name}`;
+          const fileName = foundFile.name.split('.')[0];
 
           await fs.mkdir(dirPath, { recursive: true }, (err) =>
             console.log(
@@ -215,8 +243,17 @@ const playFileCommand = async (interaction, client, servers, player) => {
                 : 'Directory created successfully!'
             )
           );
-          interaction.reply(`Downloading: ${foundFile.filename}`);
-          downloadFile(foundFile.url, filePath);
+          interaction.reply(`Downloading: ${foundFile.name}`);
+          console.log(foundFile);
+          downloadFile(
+            foundFile.url,
+            filePath,
+            fileName,
+            Guild,
+            Member,
+            Channel,
+            server
+          );
         }
       }
       if (!foundAttachment) {
@@ -229,17 +266,109 @@ const playFileCommand = async (interaction, client, servers, player) => {
   }
 };
 
-const downloadFile = async (url, path) => {
+const downloadFile = async (
+  url,
+  path,
+  fileName,
+  Guild,
+  Member,
+  Channel,
+  server
+) => {
   try {
     const res = await fetch(url);
-    const fileStream = fs.createWriteStream(path);
-    await new Promise((resolve, reject) => {
-      res.body.pipe(fileStream);
-      res.body.on('error', reject);
-      fileStream.on('finish', resolve);
+    fs.stat(path, async (err, stat) => {
+      if (!err) {
+        console.log('File exists');
+        playAudioFile(path, fileName, Guild, Member, Channel, server);
+      } else if (err.code === 'ENOENT') {
+        // file does not exist
+        const fileStream = fs.createWriteStream(path);
+
+        await new Promise((resolve, reject) => {
+          res.body.pipe(fileStream);
+          res.body.on('error', reject);
+          fileStream.on('finish', resolve);
+        });
+
+        playAudioFile(path, Guild, Member, Channel, server);
+      } else {
+        console.error('Some other error: ', err.code);
+      }
     });
   } catch (error) {
     console.error('ERROR OCCURED IN downloadFile METHOD!');
+  }
+};
+
+const playAudioFile = async (
+  path,
+  fileName,
+  Guild,
+  Member,
+  Channel,
+  server
+) => {
+  try {
+    const { queue, player } = server;
+
+    if (!Member.voice.channel) {
+      await Channel.send('You must be in a voice channel to play a video!');
+      return;
+    } else {
+      if (!player) {
+        createPlayer(server, Guild);
+      }
+
+      // make sure bot is in voice
+      if (!getVoiceConnection(Guild.id)) {
+        await joinVoice(Guild, Member, player);
+      }
+
+      // check if audio is playing or queued
+      if (
+        player._state.status !== AudioPlayerStatus.Paused &&
+        player._state.status !== AudioPlayerStatus.Playing
+      ) {
+        const resource = createAudioResource(path, {
+          inlineVolume: true,
+        });
+
+        resource.volume.setVolume(0.5);
+
+        player.play(resource); // TODO: CALL NEW PLAY METHOD
+      } else {
+        server.queue.push({ video: path, title: fileName, isLocal: true });
+      }
+    }
+  } catch (error) {
+    console.error('ERROR OCCURED IN playAudioFile METHOD!', error);
+  }
+};
+
+const joinVoice = async (Guild, Member, player) => {
+  const voiceChannelId = Member.voice.channel.id;
+
+  if (getVoiceConnection(Guild.id)) {
+    console.error('There is already a voice connection!');
+    return;
+  }
+
+  await joinVoiceChannel({
+    channelId: voiceChannelId,
+    guildId: Guild.id,
+    adapterCreator: Guild.voiceAdapterCreator,
+  });
+
+  const connection = await getVoiceConnection(Guild.id);
+  connection.subscribe(player);
+};
+
+const createPlayer = (server, Guild) => {
+  const { queue, player } = server;
+
+  if (!player) {
+    server.player = createAudioPlayer();
   }
 };
 

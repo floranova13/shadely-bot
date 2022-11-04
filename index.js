@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 /* eslint-disable no-case-declarations */
 /* eslint-disable indent */
-const { Client, Intents } = require('discord.js');
+const { Client, IntentsBitField, GatewayIntentBits } = require('discord.js');
 const {
   createAudioPlayer,
   AudioPlayerStatus,
@@ -30,12 +30,12 @@ const servers = {};
 // Create a new client instance
 const client = new Client({
   intents: [
-    Intents.FLAGS.GUILDS,
-    Intents.FLAGS.GUILD_VOICE_STATES,
-    Intents.FLAGS.DIRECT_MESSAGES,
+    IntentsBitField.Flags.Guilds, // LETS THE BOT USE INFORMATION ABOUT SERVERS (GUILDS) TO DO WHAT IT DOES
+    IntentsBitField.Flags.GuildVoiceStates, // LETS THE BOT CHECK THAT USERS ARE IN A VOICE CHANNEL TO PLAY AUDIO IN THE CHANNEL
+    IntentsBitField.Flags.DirectMessages, // LETS YOU COMMUNICATE WITH THE BOT IN DIRECT MESSAGE
+    GatewayIntentBits.MessageContent, // LETS THE BOT GET MESSAGE ATTACHMENTS TO PLAY AUDIO FILES
   ],
 });
-const player = createAudioPlayer();
 
 // When the client is ready, run this code (only once)
 client.once('ready', () => {
@@ -90,13 +90,13 @@ client.on('interactionCreate', async (interaction) => {
         await userCommand(interaction, client);
         break;
       case 'play':
-        await playCommand(interaction, client, servers, player);
+        await playCommand(interaction, client, servers);
         break;
       case 'playfile':
-        await playFileCommand(interaction, client, servers, player);
+        await playFileCommand(interaction, client, servers);
         break;
       case 'stop':
-        await stopCommand(interaction, client, servers, player);
+        await stopCommand(interaction, client, servers);
         break;
       case 'queue':
         await queueCommand(interaction, client, servers);
@@ -118,5 +118,10 @@ client.on('interactionCreate', async (interaction) => {
     }
   }
 });
+
+const clearCommands = async (Guild, interaction) => {
+  await Guild.commands.set([]);
+  interaction.reply('Cleared commands!');
+};
 
 client.login(process.env.token);

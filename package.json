@@ -10,7 +10,7 @@
     "@discordjs/voice": "^0.13.0",
     "@google-cloud/local-auth": "^2.1.1",
     "discord-api-types": "^0.26.1",
-    "discord.js": "^13.6.0",
+    "discord.js": "^14.0.2",
     "dotenv": "^14.3.2",
     "eslint": "^8.8.0",
     "googleapis": "^108.0.0",
