@@ -35,6 +35,12 @@ const generalCommands = [
     .setName('unpause')
     .setDescription('Unpauses playback of audio!'),
   new SlashCommandBuilder()
+    .setName('skip')
+    .setDescription('Skips to the next audio track, if there is one!'),
+  new SlashCommandBuilder()
+    .setName('back')
+    .setDescription('Goes back to the previous audio track, if there is one!'),
+  new SlashCommandBuilder()
     .setName('search')
     .setDescription('Searches for a youtube video!')
     .addStringOption((option) =>

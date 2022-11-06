@@ -16,6 +16,8 @@ const {
   queueCommand,
   pauseCommand,
   unpauseCommand,
+  skipCommand,
+  backCommand,
   searchCommand,
 } = require('./commands/music');
 const { rollCommand } = require('./commands/dice');
@@ -106,6 +108,12 @@ client.on('interactionCreate', async (interaction) => {
         break;
       case 'unpause':
         await unpauseCommand(interaction, client, servers);
+        break;
+      case 'skip':
+        await skipCommand(interaction, client, servers);
+        break;
+      case 'back':
+        await backCommand(interaction, client, servers);
         break;
       case 'search':
         await searchCommand(interaction, client, servers);

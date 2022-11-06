@@ -1,3 +1,4 @@
+/* eslint-disable quotes */
 /* eslint-disable no-unused-vars */
 /* eslint-disable indent */
 const ytdl = require('ytdl-core');
@@ -15,7 +16,13 @@ const {
   AudioPlayerStatus,
   entersState,
 } = require('@discordjs/voice');
-
+const {
+  joinVoice,
+  createPlayer,
+  getOrCreateVoiceConnection,
+  playAudio,
+  startPlayerListener,
+} = require('./utils');
 const Youtube = google.youtube({
   version: 'v3',
   auth: process.env.YOUTUBE_KEY,
@@ -25,70 +32,48 @@ const playCommand = async (interaction, client, servers) => {
   const Guild = await client.guilds.cache.get(interaction.guild.id);
   const Member = await Guild.members.cache.get(interaction.member.user.id);
   const videoString = interaction.options.getString('video');
+
+  if (
+    !videoString ||
+    !videoString.includes('https://www.youtube.com/watch?v=')
+  ) {
+    return interaction.reply(
+      "You didn't provide a valid YouTube URL! You better do it right next time!"
+    );
+  }
+
+  if (!Member.voice.channel) {
+    return interaction.reply('You must be in a voice channel to play a video!');
+  }
+
   const videoId = videoString.split('=')[videoString.split('=').length - 1];
-  console.log('-------------------------', videoId);
   const res = await Youtube.videos.list({
     part: 'id,snippet',
     id: videoId,
     key: process.env.YOUTUBE_KEY,
   });
-  console.log({ res });
   const videoTitle = res.data.items[0].snippet.title;
   const server = servers[Guild.id];
   const { queue, oldQueue } = server;
   let { player } = server;
 
   if (!player) {
-    createPlayer(server, Guild);
+    await createPlayer(server, Guild);
     player = server.player;
   }
 
-  const play = (connection) => {
-    // Will use FFmpeg with volume control enabled
-    const resource = createAudioResource(
-      ytdl(queue[0].video, { filter: 'audioonly' }),
-      {
-        inlineVolume: true,
-      }
-    );
+  queue.push({ video: videoString, title: videoTitle, isLocal: false });
 
-    resource.volume.setVolume(0.5);
-    player.play(resource);
-    server.current = queue[0];
-    oldQueue.push(queue.shift());
+  const connection = await getOrCreateVoiceConnection(Guild, Member, player, server);
 
-    player.on(AudioPlayerStatus.Idle, () => {
-      console.log('Idling');
-      queue.length // is there anything in the queue?
-        ? play(connection)
-        : () => {
-            if (connection) connection.destroy();
-          };
-    });
-  };
-
-  if (!Member.voice.channel) {
-    await interaction.reply('You must be in a voice channel to play a video!');
-  } else {
-    const voiceChannelId = Member.voice.channel.id;
-    queue.push({ video: videoString, title: videoTitle, isLocal: false });
-
-    // make sure bot is in voice
-    if (!getVoiceConnection(Guild.id)) {
-      await joinVoiceChannel({
-        channelId: voiceChannelId,
-        guildId: Guild.id,
-        adapterCreator: Guild.voiceAdapterCreator,
-      });
-      const connection = await getVoiceConnection(Guild.id);
-      connection.subscribe(player);
-      play(connection);
-    }
-
-    const message = `Playing video: ${videoString}`;
-
-    await interaction.reply(message);
+  if (
+    player._state.status !== AudioPlayerStatus.Playing &&
+    player._state.status !== AudioPlayerStatus.Paused
+  ) {
+    playAudio(Guild, interaction.channel, server, connection);
   }
+
+  await interaction.reply(`Queued: ${videoString}`);
 };
 
 const queueCommand = async (interaction, client, servers) => {
@@ -104,7 +89,12 @@ const queueCommand = async (interaction, client, servers) => {
     ) {
       message = 'There is currently no queue to display!';
     } else {
-      message = ['Queue:', [current, ...queue].map((item, i) => `${i}. ${item.video}`)].join('\n');
+      const queueArr = current ? [current, ...queue] : [...queue];
+      message = [
+        '**Queue:**',
+        '**---------------------------------------------------------**',
+        queueArr.map((item, i) => `|  **[${i + 1}.]**  ${item.title.trim()}`),
+      ].join('\n');
     }
 
     await interaction.reply(message);
@@ -134,6 +124,48 @@ const pauseCommand = async (interaction, client, servers) => {
 };
 
 const unpauseCommand = async (interaction, client, servers) => {
+  try {
+    const Guild = await client.guilds.cache.get(interaction.guild.id);
+    const server = servers[Guild.id];
+    const { player, queue } = server;
+    let message;
+
+    if (!queue || player._state.status !== AudioPlayerStatus.Paused) {
+      message = 'Audio is not paused!';
+    } else {
+      player.unpause();
+      message = 'Audio has resumed';
+    }
+
+    await interaction.reply(message);
+  } catch (error) {
+    console.error('ERROR OCCURED IN unpauseCommand!');
+  }
+};
+
+const skipCommand = async (interaction, client, servers) => {
+  // TODO: Actually write these methods
+  try {
+    const Guild = await client.guilds.cache.get(interaction.guild.id);
+    const server = servers[Guild.id];
+    const { player, queue } = server;
+    let message;
+
+    if (!queue || player._state.status !== AudioPlayerStatus.Paused) {
+      message = 'Audio is not paused!';
+    } else {
+      player.unpause();
+      message = 'Audio has resumed';
+    }
+
+    await interaction.reply(message);
+  } catch (error) {
+    console.error('ERROR OCCURED IN unpauseCommand!');
+  }
+};
+
+const backCommand = async (interaction, client, servers) => {
+  // TODO: Actually write these methods
   try {
     const Guild = await client.guilds.cache.get(interaction.guild.id);
     const server = servers[Guild.id];
@@ -346,38 +378,14 @@ const playAudioFile = async (
   }
 };
 
-const joinVoice = async (Guild, Member, player) => {
-  const voiceChannelId = Member.voice.channel.id;
-
-  if (getVoiceConnection(Guild.id)) {
-    console.error('There is already a voice connection!');
-    return;
-  }
-
-  await joinVoiceChannel({
-    channelId: voiceChannelId,
-    guildId: Guild.id,
-    adapterCreator: Guild.voiceAdapterCreator,
-  });
-
-  const connection = await getVoiceConnection(Guild.id);
-  connection.subscribe(player);
-};
-
-const createPlayer = (server, Guild) => {
-  const { queue, player } = server;
-
-  if (!player) {
-    server.player = createAudioPlayer();
-  }
-};
-
 module.exports = {
   playCommand,
   stopCommand,
   queueCommand,
   pauseCommand,
   unpauseCommand,
+  skipCommand,
+  backCommand,
   searchCommand,
   playFileCommand,
 };
