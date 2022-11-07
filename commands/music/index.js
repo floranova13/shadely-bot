@@ -2,12 +2,12 @@
 /* eslint-disable no-unused-vars */
 /* eslint-disable indent */
 const ytdl = require('ytdl-core');
-const fetch = require('node-fetch');
 const { google, Auth } = require('googleapis');
 const { authenticate } = require('@google-cloud/local-auth');
 // const { createReadStream } = require('node:fs');
 const { join } = require('node:path');
 const fs = require('fs');
+
 const {
   getVoiceConnection,
   joinVoiceChannel,
@@ -21,7 +21,9 @@ const {
   createPlayer,
   getOrCreateVoiceConnection,
   playAudio,
-  startPlayerListener,
+  downloadFile,
+  playAudioFile,
+  getNextResource
 } = require('./utils');
 const Youtube = google.youtube({
   version: 'v3',
@@ -64,7 +66,12 @@ const playCommand = async (interaction, client, servers) => {
 
   queue.push({ video: videoString, title: videoTitle, isLocal: false });
 
-  const connection = await getOrCreateVoiceConnection(Guild, Member, player, server);
+  const connection = await getOrCreateVoiceConnection(
+    Guild,
+    Member,
+    player,
+    server
+  );
 
   if (
     player._state.status !== AudioPlayerStatus.Playing &&
@@ -93,7 +100,9 @@ const queueCommand = async (interaction, client, servers) => {
       message = [
         '**Queue:**',
         '**---------------------------------------------------------**',
-        queueArr.map((item, i) => `|  **[${i + 1}.]**  ${item.title.trim()}`),
+        ...queueArr.map(
+          (item, i) => `|  **[${i + 1}.]**  ${item.title.trim()}`
+        ),
       ].join('\n');
     }
 
@@ -144,14 +153,24 @@ const unpauseCommand = async (interaction, client, servers) => {
 };
 
 const skipCommand = async (interaction, client, servers) => {
-  // TODO: Actually write these methods
   try {
     const Guild = await client.guilds.cache.get(interaction.guild.id);
     const server = servers[Guild.id];
     const { player, queue } = server;
-    let message;
 
-    if (!queue || player._state.status !== AudioPlayerStatus.Paused) {
+    if (!queue.length) {
+      return interaction.reply('There is no audio in the queue to skip to!');
+    }
+
+    if (player._state.status !== AudioPlayerStatus.Playing) {
+      return interaction.reply('Audio is not playing!');
+    }
+
+    const resource = getNextResource(queue[0]);
+    server.current = null;
+    player.play()
+
+    if (!queue.length || player._state.status !== AudioPlayerStatus.Playing) {
       message = 'Audio is not paused!';
     } else {
       player.unpause();
@@ -228,12 +247,17 @@ const searchCommand = async (interaction, client) => {
 };
 
 const playFileCommand = async (interaction, client, servers, player) => {
-  let message;
-
   try {
     const Guild = await client.guilds.cache.get(interaction.guild.id);
     const Member = await Guild.members.cache.get(interaction.member.user.id);
     const server = servers[Guild.id];
+
+    if (!Member.voice.channel) {
+      return interaction.reply(
+        'You must be in a voice channel to play a video!'
+      );
+    }
+
     const messageObject = await interaction.channel.messages.fetch({
       limit: 10,
     });
@@ -263,7 +287,7 @@ const playFileCommand = async (interaction, client, servers, player) => {
           const foundFile = currentMessageAttachments[0];
           const dirPath = join(
             __dirname,
-            `/downloads${serverName}/${channelName}`
+            `/downloads/${serverName}/${channelName}`
           );
           const filePath = `${dirPath}/${foundFile.name}`;
           const fileName = foundFile.name.split('.')[0];
@@ -275,8 +299,7 @@ const playFileCommand = async (interaction, client, servers, player) => {
                 : 'Directory created successfully!'
             )
           );
-          interaction.reply(`Downloading: ${foundFile.name}`);
-          console.log(foundFile);
+          interaction.reply(`Downloading: ${foundFile.name.split('.')[0]}`);
           downloadFile(
             foundFile.url,
             filePath,
@@ -295,86 +318,6 @@ const playFileCommand = async (interaction, client, servers, player) => {
   } catch (error) {
     interaction.reply('Error!');
     console.error('ERROR OCCURED IN playFileCommand!');
-  }
-};
-
-const downloadFile = async (
-  url,
-  path,
-  fileName,
-  Guild,
-  Member,
-  Channel,
-  server
-) => {
-  try {
-    const res = await fetch(url);
-    fs.stat(path, async (err, stat) => {
-      if (!err) {
-        console.log('File exists');
-        playAudioFile(path, fileName, Guild, Member, Channel, server);
-      } else if (err.code === 'ENOENT') {
-        // file does not exist
-        const fileStream = fs.createWriteStream(path);
-
-        await new Promise((resolve, reject) => {
-          res.body.pipe(fileStream);
-          res.body.on('error', reject);
-          fileStream.on('finish', resolve);
-        });
-
-        playAudioFile(path, Guild, Member, Channel, server);
-      } else {
-        console.error('Some other error: ', err.code);
-      }
-    });
-  } catch (error) {
-    console.error('ERROR OCCURED IN downloadFile METHOD!');
-  }
-};
-
-const playAudioFile = async (
-  path,
-  fileName,
-  Guild,
-  Member,
-  Channel,
-  server
-) => {
-  try {
-    const { queue, player } = server;
-
-    if (!Member.voice.channel) {
-      await Channel.send('You must be in a voice channel to play a video!');
-      return;
-    } else {
-      if (!player) {
-        createPlayer(server, Guild);
-      }
-
-      // make sure bot is in voice
-      if (!getVoiceConnection(Guild.id)) {
-        await joinVoice(Guild, Member, player);
-      }
-
-      // check if audio is playing or queued
-      if (
-        player._state.status !== AudioPlayerStatus.Paused &&
-        player._state.status !== AudioPlayerStatus.Playing
-      ) {
-        const resource = createAudioResource(path, {
-          inlineVolume: true,
-        });
-
-        resource.volume.setVolume(0.5);
-
-        player.play(resource); // TODO: CALL NEW PLAY METHOD
-      } else {
-        server.queue.push({ video: path, title: fileName, isLocal: true });
-      }
-    }
-  } catch (error) {
-    console.error('ERROR OCCURED IN playAudioFile METHOD!', error);
   }
 };
 
