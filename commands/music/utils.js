@@ -63,7 +63,6 @@ const playAudio = async (Guild, Channel, server, connection) => {
   const resource = getNextResource(queue[0]);
   console.log('starting to play audio');
 
-
   resource.volume.setVolume(0.5);
   console.log('Playing audio');
   player.play(resource);
@@ -74,6 +73,7 @@ const playAudio = async (Guild, Channel, server, connection) => {
 
 const startPlayerListener = (Guild, server, connection) => {
   const { queue, oldQueue, player } = server;
+  console.log('starting player listener');
 
   player.on(AudioPlayerStatus.Idle, () => {
     console.log('Idling');
@@ -112,7 +112,7 @@ const downloadFile = async (
           fileStream.on('finish', resolve);
         });
 
-        playAudioFile(path, Guild, Member, Channel, server);
+        playAudioFile(path, fileName, Guild, Member, Channel, server);
       } else {
         console.error('Some other error: ', err.code);
       }

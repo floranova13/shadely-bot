@@ -23,7 +23,7 @@ const {
   playAudio,
   downloadFile,
   playAudioFile,
-  getNextResource
+  getNextResource,
 } = require('./utils');
 const Youtube = google.youtube({
   version: 'v3',
@@ -156,7 +156,7 @@ const skipCommand = async (interaction, client, servers) => {
   try {
     const Guild = await client.guilds.cache.get(interaction.guild.id);
     const server = servers[Guild.id];
-    const { player, queue } = server;
+    const { player, queue, oldQueue } = server;
 
     if (!queue.length) {
       return interaction.reply('There is no audio in the queue to skip to!');
@@ -166,20 +166,13 @@ const skipCommand = async (interaction, client, servers) => {
       return interaction.reply('Audio is not playing!');
     }
 
-    const resource = getNextResource(queue[0]);
-    server.current = null;
-    player.play()
-
-    if (!queue.length || player._state.status !== AudioPlayerStatus.Playing) {
-      message = 'Audio is not paused!';
-    } else {
-      player.unpause();
-      message = 'Audio has resumed';
-    }
-
-    await interaction.reply(message);
+    const resource = await getNextResource(queue[0]);
+    server.current = queue[0];
+    oldQueue.push(queue.shift());
+    await player.play(resource);
+    return interaction.reply(`Now playing: ${server.current.title}`);
   } catch (error) {
-    console.error('ERROR OCCURED IN unpauseCommand!');
+    console.error('ERROR OCCURED IN skipCommand!');
   }
 };
 
@@ -259,7 +252,7 @@ const playFileCommand = async (interaction, client, servers, player) => {
     }
 
     const messageObject = await interaction.channel.messages.fetch({
-      limit: 10,
+      limit: 20,
     });
     const latestMessages = Array.from(messageObject.values()).filter(
       (currentMessage) => currentMessage.author.id === interaction.user.id
