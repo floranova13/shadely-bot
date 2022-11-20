@@ -3,3 +3,4 @@ node_modules
 config.json
 oauth2.keys.json
 ffmpeg.exe
+/music/downloads/*
