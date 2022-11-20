@@ -84,7 +84,16 @@ const startPlayerListener = (Guild, Channel, server, connection) => {
     queue.length
       ? playAudio(Guild, Channel, server, connection)
       : () => {
-          if (connection) connection.destroy();
+          if (connection) {
+            connection.destroy();
+            console.log('destroying connection');
+
+            server.queue = [];
+            server.oldQueue = [];
+            server.current = null;
+
+            Channel.send('Queue is empty, leaving voice channel');
+          }
         };
   });
 };

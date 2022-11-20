@@ -168,9 +168,9 @@ const skipCommand = async (interaction, client, servers) => {
       return interaction.reply('Audio is not playing!');
     }
 
+    oldQueue.push(queue.shift());
     const resource = await getNextResource(queue[0]);
     server.current = queue[0];
-    oldQueue.push(queue.shift());
     await player.play(resource);
     return interaction.reply(`Now playing: ${server.current.title}`);
   } catch (error) {
@@ -203,7 +203,7 @@ const stopCommand = async (interaction, client, servers) => {
   try {
     const Guild = await client.guilds.cache.get(interaction.guild.id);
     const connection = getVoiceConnection(Guild.id);
-    const goodbyeMessage = 'Bye boi!';
+    const goodbyeMessage = 'Peace!';
 
     if (connection) {
       connection.destroy();
