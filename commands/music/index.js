@@ -32,6 +32,7 @@ const Youtube = google.youtube({
 
 const playCommand = async (interaction, client, servers) => {
   const Guild = await client.guilds.cache.get(interaction.guild.id);
+  const Channel = interaction.channel;
   const Member = await Guild.members.cache.get(interaction.member.user.id);
   const videoString = interaction.options.getString('video');
 
@@ -68,6 +69,7 @@ const playCommand = async (interaction, client, servers) => {
 
   const connection = await getOrCreateVoiceConnection(
     Guild,
+    Channel,
     Member,
     player,
     server
@@ -77,7 +79,7 @@ const playCommand = async (interaction, client, servers) => {
     player._state.status !== AudioPlayerStatus.Playing &&
     player._state.status !== AudioPlayerStatus.Paused
   ) {
-    playAudio(Guild, interaction.channel, server, connection);
+    playAudio(Guild, Channel, server, connection);
   }
 
   await interaction.reply(`Queued: ${videoString}`);
@@ -207,7 +209,10 @@ const stopCommand = async (interaction, client, servers) => {
       connection.destroy();
     }
 
-    servers[Guild.id] = { queue: [] };
+    servers[Guild.id].queue = [];
+    servers[Guild.id].oldQueue = [];
+    servers[Guild.id].current = null;
+
     await interaction.reply(goodbyeMessage);
   } catch (error) {
     console.error('ERROR OCCURED IN stopCommand!');

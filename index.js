@@ -67,6 +67,7 @@ client.on('interactionCreate', async (interaction) => {
     const { commandName } = interaction;
 
     if (
+      !requiredRoles.includes('*') &&
       !Member.roles.cache.some((role) =>
         [
           ...requiredRoles,

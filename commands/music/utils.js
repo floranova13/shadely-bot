@@ -38,7 +38,7 @@ const createPlayer = (server, Guild) => {
   }
 };
 
-const getOrCreateVoiceConnection = async (Guild, Member, player, server) => {
+const getOrCreateVoiceConnection = async (Guild, Channel, Member, player, server) => {
   let connection = await getVoiceConnection(Guild.id);
   const voiceChannelId = Member.voice.channel.id;
 
@@ -52,7 +52,7 @@ const getOrCreateVoiceConnection = async (Guild, Member, player, server) => {
 
     connection = await getVoiceConnection(Guild.id);
     await connection.subscribe(player);
-    await startPlayerListener(Guild, server, connection);
+    await startPlayerListener(Guild, Channel, server, connection);
   }
 
   return connection;
@@ -60,7 +60,9 @@ const getOrCreateVoiceConnection = async (Guild, Member, player, server) => {
 
 const playAudio = async (Guild, Channel, server, connection) => {
   const { queue, oldQueue, player } = server;
-  const resource = getNextResource(queue[0]);
+  // console.log({ queue });
+  // console.log({ oldQueue });
+  const resource = await getNextResource(queue[0]);
   console.log('starting to play audio');
 
   resource.volume.setVolume(0.5);
@@ -71,7 +73,7 @@ const playAudio = async (Guild, Channel, server, connection) => {
   oldQueue.push(queue.shift());
 };
 
-const startPlayerListener = (Guild, server, connection) => {
+const startPlayerListener = (Guild, Channel, server, connection) => {
   const { queue, oldQueue, player } = server;
   console.log('starting player listener');
 
@@ -80,7 +82,7 @@ const startPlayerListener = (Guild, server, connection) => {
     server.current = null;
     // is there anything in the queue?
     queue.length
-      ? playAudio(Guild, queue, player)
+      ? playAudio(Guild, Channel, server, connection)
       : () => {
           if (connection) connection.destroy();
         };
@@ -147,11 +149,14 @@ const playAudioFile = async (
         await joinVoice(Guild, Member, player);
       }
 
-      await Channel.send(`Queuing: ${fileName}`);
+      if (queue.length) {
+        await Channel.send(`Queuing: ${fileName}`);
+      }
       queue.push({ video: path, title: fileName, isLocal: true });
 
       const connection = await getOrCreateVoiceConnection(
         Guild,
+        Channel,
         Member,
         player,
         server

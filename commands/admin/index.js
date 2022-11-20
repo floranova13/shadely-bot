@@ -4,6 +4,7 @@ const initializeCommand = async (interaction, client, servers) => {
   const Member = await Guild.members.cache.get(interaction.member.user.id);
   const validRoles = {
     'Personal Server': ['DM'],
+    'D&D': ['*'],
   };
 
   if (
