@@ -49,7 +49,7 @@ const playCommand = async (interaction, client, servers) => {
     return interaction.reply('You must be in a voice channel to play a video!');
   }
 
-  const videoId = videoString.split('=')[videoString.split('=').length - 1];
+  const videoId = videoString.split('&')[0].split('=')[1];
   const res = await Youtube.videos.list({
     part: 'id,snippet',
     id: videoId,

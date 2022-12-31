@@ -79,6 +79,7 @@ const startPlayerListener = (Guild, Channel, server, connection) => {
 
   player.on(AudioPlayerStatus.Idle, () => {
     console.log('Idling');
+    console.log(`Queue Length: ${queue.length}`);
     server.current = null;
     // is there anything in the queue?
     queue.length
